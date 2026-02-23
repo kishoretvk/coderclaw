@@ -17,15 +17,21 @@ services:
     container_name: titanclaw
     ports:
       - "3000:3000"
-    command: ["titanclaw", "run", "--no-onboard", "-m", "test"]
+    # Run with --no-onboard since we've pre-configured the database
+    command: ["titanclaw", "run", "--no-onboard"]
+    stdin_open: true  # Keep STDIN open
+    tty: true         # Allocate a pseudo-TTY
     environment:
       - DATABASE_URL=postgres://titanclaw:titanclaw@postgres:5432/titanclaw
       - RUST_LOG=titanclaw=info,tower_http=debug
       - DATA_DIR=/data
       - CONFIG_DIR=/config
       - SECRETS_MASTER_KEY=0000000000000000000000000000000000000000000000000000000000000000
+      # Pre-configured settings to skip onboarding
+      - ONBOARD_COMPLETED=true
       - LLM_BACKEND=ollama
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - SELECTED_MODEL=richardyoung/schematron-3b:Q4_K_M
     volumes:
       - titanclaw_data:/data
       - titanclaw_config:/config
