@@ -150,6 +150,7 @@ fn should_check_nearai() -> bool {
 /// Get current LLM backend for display
 fn get_llm_backend() -> String {
     std::env::var("LLM_BACKEND").unwrap_or_else(|_| "ollama (default)".to_string())
+}
 
 async fn check_database() -> CheckResult {
     let backend = std::env::var("DATABASE_BACKEND")

@@ -19,7 +19,7 @@ services:
       - "3000:3000"
     environment:
       - DATABASE_URL=postgres://titanclaw:titanclaw@postgres:5432/titanclaw
-      - RUST_LOG=ironclaw=info,tower_http=debug
+      - RUST_LOG=titanclaw=info,tower_http=debug
       - DATA_DIR=/data
       - CONFIG_DIR=/config
     volumes:
