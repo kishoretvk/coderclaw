@@ -32,6 +32,8 @@ services:
       - LLM_BACKEND=ollama
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - SELECTED_MODEL=richardyoung/schematron-3b:Q4_K_M
+      # Allow external connections to web gateway
+      - GATEWAY_HOST=0.0.0.0
     volumes:
       - titanclaw_data:/data
       - titanclaw_config:/config

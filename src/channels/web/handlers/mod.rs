@@ -8,6 +8,7 @@ pub mod jobs;
 pub mod memory;
 pub mod routines;
 pub mod settings;
+pub mod setup;
 pub mod skills;
 pub mod static_files;
 
@@ -19,5 +20,6 @@ pub use jobs::*;
 pub use memory::*;
 pub use routines::*;
 pub use settings::*;
+pub use setup::*;
 pub use skills::*;
 pub use static_files::*;

@@ -172,7 +172,14 @@ pub async fn start_server(
             })?;
 
     // Public routes (no auth)
-    let public = Router::new().route("/api/health", get(health_handler));
+    // Note: Setup handlers are defined at the bottom of this file
+    let public = Router::new()
+        .route("/api/health", get(health_handler))
+        // Setup endpoints
+        .route("/api/setup/status", get(setup_status_handler))
+        .route("/api/setup/models", get(setup_models_handler))
+        .route("/api/setup/validate", post(setup_validate_handler))
+        .route("/api/setup/save", post(setup_save_handler));
 
     // Protected routes (require auth)
     let auth_state = AuthState { token: auth_token };
@@ -288,8 +295,10 @@ pub async fn start_server(
     // Static file routes (no auth, served from embedded strings)
     let statics = Router::new()
         .route("/", get(index_handler))
+        .route("/setup", get(setup_page_handler))
         .route("/style.css", get(css_handler))
-        .route("/app.js", get(js_handler));
+        .route("/app.js", get(js_handler))
+        .route("/setup.js", get(setup_js_handler));
 
     // Project file serving (behind auth to prevent unauthorized file access).
     let projects = Router::new()

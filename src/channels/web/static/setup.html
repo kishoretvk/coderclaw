@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TitanClaw - Setup</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .setup-container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 600px;
+      overflow: hidden;
+    }
+    
+    .setup-header {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: white;
+      padding: 32px;
+      text-align: center;
+    }
+    
+    .setup-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .setup-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    .progress-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px 32px;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .progress-step .circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .progress-step.active .circle {
+      background: #4f46e5;
+      color: white;
+    }
+    
+    .progress-step.completed .circle {
+      background: #10b981;
+      color: white;
+    }
+    
+    .progress-step .label {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    
+    .progress-step.active .label,
+    .progress-step.completed .label {
+      color: #374151;
+      font-weight: 500;
+    }
+    
+    .setup-content {
+      padding: 32px;
+    }
+    
+    .step {
+      display: none;
+    }
+    
+    .step.active {
+      display: block;
+    }
+    
+    .step h2 {
+      font-size: 20px;
+      margin-bottom: 24px;
+      color: #111827;
+    }
+    
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    
+    .card {
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .card:hover {
+      border-color: #4f46e5;
+      background: #f5f3ff;
+    }
+    
+    .card.selected {
+      border-color: #4f46e5;
+      background: #eef2ff;
+    }
+    
+    .card h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      color: #111827;
+    }
+    
+    .card p {
+      font-size: 13px;
+      color: #6b7280;
+    }
+    
+    .card .icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .form-group .hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    
+    .btn-primary {
+      background: #4f46e5;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #4338ca;
+    }
+    
+    .btn-primary:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+    
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+    
+    .button-row {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+    
+    .error-message {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .loading.active {
+      display: block;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #4f46e5;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .success-screen {
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .success-screen .check {
+      width: 80px;
+      height: 80px;
+      background: #10b981;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      color: white;
+      margin: 0 auto 24px;
+    }
+    
+    .success-screen h2 {
+      color: #111827;
+      margin-bottom: 12px;
+    }
+    
+    .success-screen p {
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+    
+    .token-box {
+      background: #f3f4f6;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      word-break: break-all;
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="setup-container">
+    <div class="setup-header">
+      <h1>Welcome to TitanClaw</h1>
+      <p>Configure your AI orchestration platform</p>
+    </div>
+    
+    <div class="progress-bar">
+      <div class="progress-step active" data-step="1">
+        <div class="circle">1</div>
+        <div class="label">Database</div>
+      </div>
+      <div class="progress-step" data-step="2">
+        <div class="circle">2</div>
+        <div class="label">LLM Provider</div>
+      </div>
+      <div class="progress-step" data-step="3">
+        <div class="circle">3</div>
+        <div class="label">Model</div>
+      </div>
+      <div class="progress-step" data-step="4">
+        <div class="circle">4</div>
+        <div class="label">Review</div>
+      </div>
+    </div>
+    
+    <div class="setup-content">
+      <!-- Step 1: Database -->
+      <div class="step active" data-step="1">
+        <h2>Choose Your Database</h2>
+        <div class="card-grid">
+          <div class="card selected" data-value="libsql">
+            <div class="icon">🗄️</div>
+            <h3>SQLite (libSQL)</h3>
+            <p>Lightweight local database. Best for development and single-user setups.</p>
+          </div>
+          <div class="card" data-value="postgres">
+            <div class="icon">🐘</div>
+            <h3>PostgreSQL</h3>
+            <p>Production-grade database. Best for Docker and multi-user deployments.</p>
+          </div>
+        </div>
+        
+        <div class="form-group" id="postgres-url-group" style="display: none; margin-top: 20px;">
+          <label for="database-url">PostgreSQL Connection URL</label>
+          <input type="text" id="database-url" placeholder="postgres://user:password@host:5432/database">
+          <div class="hint">Format: postgres://user:password@host:port/database</div>
+        </div>
+        
+        <div class="button-row">
+          <button class="btn btn-primary" onclick="nextStep(1)">Continue</button>
+        </div>
+      </div>
+      
+      <!-- Step 2: LLM Provider -->
+      <div class="step" data-step="2">
+        <h2>Choose Your LLM Provider</h2>
+        <div class="card-grid">
+          <div class="card selected" data-value="ollama">
+            <div class="icon">🖥️</div>
+            <h3>Ollama</h3>
+            <p>Run AI models locally on your machine. Free, private, no API needed.</p>
+          </div>
+          <div class="card" data-value="openai">
+            <div class="icon">🔮</div>
+            <h3>OpenAI</h3>
+            <p>GPT-4, GPT-4o, and more. Cloud-hosted by OpenAI.</p>
+          </div>
+          <div class="card" data-value="anthropic">
+            <div class="icon">🧠</div>
+            <h3>Anthropic</h3>
+            <p>Claude 3.5, Claude 4. Cloud-hosted by Anthropic.</p>
+          </div>
+          <div class="card" data-value="openai_compatible">
+            <div class="icon">🔌</div>
+            <h3>OpenAI-Compatible</h3>
+            <p>LM Studio, vLLM, Ollama API, or any OpenAI-compatible endpoint.</p>
+          </div>
+        </div>
+        
+        <!-- Provider-specific config -->
+        <div id="provider-config" style="margin-top: 20px;">
+          <!-- Ollama -->
+          <div class="provider-fields" data-provider="ollama">
+            <div class="form-group">
+              <label for="ollama-url">Ollama Base URL</label>
+              <input type="text" id="ollama-url" value="http://localhost:11434">
+              <div class="hint">The URL where your Ollama server is running</div>
+            </div>
+          </div>
+          
+          <!-- OpenAI -->
+          <div class="provider-fields" data-provider="openai" style="display: none;">
+            <div class="form-group">
+              <label for="openai-key">OpenAI API Key</label>
+              <input type="password" id="openai-key" placeholder="sk-...">
+              <div class="hint">Get your key from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></div>
+            </div>
+          </div>
+          
+          <!-- Anthropic -->
+          <div class="provider-fields" data-provider="anthropic" style="display: none;">
+            <div class="form-group">
+              <label for="anthropic-key">Anthropic API Key</label>
+              <input type="password" id="anthropic-key" placeholder="sk-ant-...">
+              <div class="hint">Get your key from <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a></div>
+            </div>
+          </div>
+          
+          <!-- OpenAI-Compatible -->
+          <div class="provider-fields" data-provider="openai_compatible" style="display: none;">
+            <div class="form-group">
+              <label for="compatible-url">Base URL</label>
+              <input type="text" id="compatible-url" placeholder="http://localhost:1234/v1">
+              <div class="hint">The base URL for the OpenAI-compatible API</div>
+            </div>
+            <div class="form-group">
+              <label for="compatible-key">API Key (optional)</label>
+              <input type="password" id="compatible-key" placeholder="sk-... (optional for local)">
+            </div>
+          </div>
+        </div>
+        
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="prevStep(2)">Back</button>
+          <button class="btn btn-primary" onclick="nextStep(2)">Continue</button>
+        </div>
+      </div>
+      
+      <!-- Step 3: Model -->
+      <div class="step" data-step="3">
+        <h2>Select a Model</h2>
+        
+        <div class="form-group">
+          <button class="btn btn-secondary" onclick="fetchModels()" id="fetch-models-btn" style="margin-bottom: 16px;">
+            🔄 Fetch Available Models
+          </button>
+        </div>
+        
+        <div id="models-loading" class="loading">
+          <div class="spinner"></div>
+          <p>Fetching models...</p>
+        </div>
+        
+        <div id="models-error" class="error-message" style="display: none;"></div>
+        
+        <div class="form-group">
+          <label for="model-select">Select Model</label>
+          <select id="model-select">
+            <option value="">-- Select a model --</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="model-manual">Or enter model name manually</label>
+          <input type="text" id="model-manual" placeholder="e.g., llama3, gpt-4o, claude-3-5-sonnet-20241022">
+        </div>
+        
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="prevStep(3)">Back</button>
+          <button class="btn btn-primary" onclick="nextStep(3)">Continue</button>
+        </div>
+      </div>
+      
+      <!-- Step 4: Review -->
+      <div class="step" data-step="4">
+        <h2>Review Configuration</h2>
+        
+        <div id="review-content">
+          <div class="form-group">
+            <label>Database</label>
+            <div id="review-database" class="token-box">libSQL</div>
+          </div>
+          
+          <div class="form-group">
+            <label>LLM Provider</label>
+            <div id="review-provider" class="token-box">Ollama</div>
+          </div>
+          
+          <div class="form-group">
+            <label>Model</label>
+            <div id="review-model" class="token-box">-</div>
+          </div>
+        </div>
+        
+        <div id="save-error" class="error-message" style="display: none;"></div>
+        
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="prevStep(4)">Back</button>
+          <button class="btn btn-primary" onclick="saveConfiguration()" id="save-btn">Save & Continue</button>
+        </div>
+      </div>
+      
+      <!-- Success -->
+      <div class="step" data-step="5">
+        <div class="success-screen">
+          <div class="check">✓</div>
+          <h2>Setup Complete!</h2>
+          <p>TitanClaw has been configured successfully.</p>
+          <div class="token-box" id="final-token"></div>
+          <p>Copy this token and open the main application:</p>
+          <a href="/" id="final-link" class="btn btn-primary">Open TitanClaw</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="/setup.js"></script>
+</body>
+</html>
