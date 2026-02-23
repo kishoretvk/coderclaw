@@ -132,7 +132,8 @@ pub struct EmbeddingsSettings {
     #[serde(default)]
     pub enabled: bool,
 
-    /// Provider to use: "openai" or "nearai".
+    /// Provider to use: "openai" or "ollama".
+    /// Note: "nearai" is deprecated and will be removed.
     #[serde(default = "default_embeddings_provider")]
     pub provider: String,
 
@@ -142,7 +143,8 @@ pub struct EmbeddingsSettings {
 }
 
 fn default_embeddings_provider() -> String {
-    "nearai".to_string()
+    // Note: "nearai" is deprecated, use "openai" instead
+    "openai".to_string()
 }
 
 fn default_embeddings_model() -> String {
@@ -554,7 +556,9 @@ fn default_sandbox_cpu_shares() -> u32 {
 }
 
 fn default_sandbox_image() -> String {
-    "ghcr.io/nearai/sandbox:latest".to_string()
+    // Default sandbox image - can be overridden via SANDBOX_IMAGE env var
+    // Consider using ghcr.io/titanclaw/sandbox:latest for production
+    "ghcr.io/titanclaw/sandbox:latest".to_string()
 }
 
 impl Default for SandboxSettings {

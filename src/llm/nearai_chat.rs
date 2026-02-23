@@ -1,7 +1,14 @@
 //! NEAR AI Chat Completions API provider implementation.
 //!
+//! ⚠️ **DEPRECATED**: NEAR AI support will be removed in a future version.
 //! This provider uses the standard OpenAI-compatible chat completions API
 //! with API key authentication (for cloud-api).
+//!
+//! **Migration**: Please use one of the following alternatives:
+//! - `ollama` - Local LLM inference
+//! - `openai` - Direct OpenAI API
+//! - `anthropic` - Direct Anthropic API
+//! - `openai_compatible` - Any OpenAI-compatible endpoint (vLLM, LiteLLM, etc.)
 
 use async_trait::async_trait;
 use reqwest::Client;
@@ -19,6 +26,11 @@ use crate::llm::provider::{
 use crate::llm::retry::{is_retryable_status, retry_backoff_delay};
 
 /// NEAR AI Chat Completions API provider.
+///
+/// ⚠️ **DEPRECATED**: Use `Ollama`, `OpenAi`, `Anthropic`, or `OpenAiCompatible` instead.
+#[deprecated(
+    note = "NEAR AI Chat provider is deprecated. Use LLM_BACKEND=ollama, openai, anthropic, or openai_compatible instead"
+)]
 pub struct NearAiChatProvider {
     client: Client,
     config: NearAiConfig,

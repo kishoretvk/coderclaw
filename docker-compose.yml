@@ -1,20 +1,74 @@
-# Local development only — do NOT use these credentials in production.
+# Docker Compose for TitanClaw - Local Development
+#
+# Usage:
+#   docker-compose up -d          # Start all services
+#   docker-compose logs -f        # View logs
+#   docker-compose down          # Stop all services
+#
+# Environment file:
+#   Copy .env.example to .env and configure
+
 services:
+  # TitanClaw Application
+  titanclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: titanclaw
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgres://titanclaw:titanclaw@postgres:5432/titanclaw
+      - RUST_LOG=ironclaw=info,tower_http=debug
+      - DATA_DIR=/data
+      - CONFIG_DIR=/config
+    volumes:
+      - titanclaw_data:/data
+      - titanclaw_config:/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - titanclaw-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Database with pgvector
   postgres:
     image: pgvector/pgvector:pg16
+    container_name: titanclaw-postgres
+    environment:
+      POSTGRES_DB: titanclaw
+      POSTGRES_USER: titanclaw
+      POSTGRES_PASSWORD: titanclaw
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_DB: ironclaw
-      POSTGRES_USER: ironclaw
-      POSTGRES_PASSWORD: ironclaw  # dev-only, change for any non-local deployment
-    volumes:
-      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ironclaw"]
+      test: ["CMD-SHELL", "pg_isready -U titanclaw"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - titanclaw-network
 
+# Volume definitions for data persistence
 volumes:
-  pgdata:
+  titanclaw_data:
+    driver: local
+  titanclaw_config:
+    driver: local
+  postgres_data:
+    driver: local
+
+# Network definition
+networks:
+  titanclaw-network:
+    driver: bridge

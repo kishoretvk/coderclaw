@@ -21,6 +21,7 @@ Transform IronClaw from a single-node, synchronous AI assistant into the **IronC
 | Reflex compiler | ✅ | Background reflex compiler now persists normalized recurring patterns to a reflex registry and routes matching prompts directly to compiled tools before LLM fallback. |
 | GraphRAG + AST indexing | ✅ | `memory_graph` now supports bounded multi-hop traversal, graph scoring, stable ranking, and semantic context fusion in responses. |
 | Docker worker image provisioning hardening | ✅ | Orchestrator `job_manager` now preflights worker image availability and auto-pulls when missing (respects `sandbox.auto_pull_image`), eliminating first-run `No such image` container creation failures. |
+| Docker Compose stack | ✅ | Complete docker-compose.yml with PostgreSQL, health checks, volume persistence for local development. |
 | Chat lifecycle controls | ✅ | Web gateway now supports hard-delete for a single thread and clear-all chats (chat scope only), with UI actions. |
 | Sandbox artifact export | ✅ | Web gateway now supports direct archive download of sandbox project output (`/api/jobs/{id}/files/download`). |
 | OpenCode bridge runtime | ✅ | `JobMode::OpenCode` now launches a dedicated `opencode-bridge` worker command (not generic `worker` fallback), passes model defaults through, and streams OpenCode output/events to orchestrator channels. |
@@ -67,7 +68,7 @@ Transform IronClaw from a single-node, synchronous AI assistant into the **IronC
 
 ### 5. Total Provider Independence (Zero-Bottleneck inference)
 *A truly massive swarm cannot route its traffic through a single web proxy.*
-*   **Direct API Connections**: Rip out the hard dependency on the `NEAR AI` proxy router in [src/llm/nearai.rs](file:///home/phantom/Documents/TitanClaw/titanclaw/src/llm/nearai.rs). The mesh will connect directly to Anthropic, OpenAI, or local endpoints.
+*   **Direct API Connections**: Rip out the hard dependency on the `NEAR AI` proxy router in [src/llm/nearai.rs](file:///home/phantom/Documents/TitanClaw/titanclaw/src/llm/nearai.rs). The mesh will connect directly to Anthropic, OpenAI, or local endpoints. **(COMPLETED: Near AI deprecated, default changed to Ollama)**
 *   **Local Dominance**: Default thousands of micro-worker tasks to high-speed local inference (via Ollama or vLLM bindings) to completely eliminate network TTFB and API costs for repetitive/simple tasks.
 *   **Decentralized Onboarding**: Rewrite the `ironclaw onboard` CLI to offer a totally offline, proxy-free setup path so the engine can run completely air-gapped if desired.
 

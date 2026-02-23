@@ -82,10 +82,15 @@ pub struct OllamaConfig {
 }
 
 /// Configuration for any OpenAI-compatible endpoint.
+///
+/// Supports: vLLM, LM Studio, Ollama, LiteLLM, OpenRouter, etc.
 #[derive(Debug, Clone)]
 pub struct OpenAiCompatibleConfig {
+    /// Base URL for the API (e.g., http://localhost:8000/v1)
     pub base_url: String,
+    /// API key (optional for local servers)
     pub api_key: Option<SecretString>,
+    /// Model name to use
     pub model: String,
 }
 
@@ -98,13 +103,13 @@ pub struct TinfoilConfig {
 
 /// LLM provider configuration.
 ///
-/// NEAR AI remains the default backend. Users can switch to other providers
-/// by setting `LLM_BACKEND` (e.g. `openai`, `anthropic`, `ollama`).
+/// Default backend is Ollama. Users can switch to other providers
+/// by setting `LLM_BACKEND` (e.g. `openai`, `anthropic`, `ollama`, `openai_compatible`).
 #[derive(Debug, Clone)]
 pub struct LlmConfig {
     /// Which backend to use (default: Ollama)
     pub backend: LlmBackend,
-    /// NEAR AI config (always populated for NEAR AI embeddings, etc.)
+    /// NEAR AI config (deprecated, kept for backwards compatibility)
     pub nearai: NearAiConfig,
     /// Direct OpenAI config (populated when backend=openai)
     pub openai: Option<OpenAiDirectConfig>,
@@ -196,7 +201,8 @@ pub struct NearAiConfig {
 
 impl LlmConfig {
     pub(crate) fn resolve(settings: &Settings) -> Result<Self, ConfigError> {
-        // Determine backend: env var > settings > default (NearAi)
+        // Determine backend: env var > settings > default (Ollama)
+        // Note: Near AI backend is deprecated
         let backend: LlmBackend = if let Some(b) = optional_env("LLM_BACKEND")? {
             b.parse().map_err(|e| ConfigError::InvalidValue {
                 key: "LLM_BACKEND".to_string(),

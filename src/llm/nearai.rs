@@ -1,7 +1,14 @@
 //! NEAR AI Chat API provider implementation.
 //!
+//! ⚠️ **DEPRECATED**: NEAR AI support will be removed in a future version.
 //! This provider uses the NEAR AI chat-api which provides a unified interface
 //! to multiple LLM models (OpenAI, Anthropic, etc.) with user authentication.
+//!
+//! **Migration**: Please use one of the following alternatives:
+//! - `ollama` - Local LLM inference
+//! - `openai` - Direct OpenAI API
+//! - `anthropic` - Direct Anthropic API
+//! - `openai_compatible` - Any OpenAI-compatible endpoint (vLLM, LiteLLM, etc.)
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -42,6 +49,11 @@ struct ChainState {
 }
 
 /// NEAR AI Chat API provider.
+///
+/// ⚠️ **DEPRECATED**: Use `Ollama`, `OpenAi`, `Anthropic`, or `OpenAiCompatible` instead.
+#[deprecated(
+    note = "NEAR AI provider is deprecated. Use LLM_BACKEND=ollama, openai, anthropic, or openai_compatible instead"
+)]
 pub struct NearAiProvider {
     client: Client,
     config: NearAiConfig,

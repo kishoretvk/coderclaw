@@ -1,11 +1,13 @@
 //! LLM integration for the agent.
 //!
 //! Supports multiple backends:
-//! - **NEAR AI** (default): Session-based or API key auth via NEAR AI proxy
+//! - **Ollama** (default): Local model inference - RECOMMENDED
 //! - **OpenAI**: Direct API access with your own key
 //! - **Anthropic**: Direct API access with your own key
-//! - **Ollama**: Local model inference
 //! - **OpenAI-compatible**: Any endpoint that speaks the OpenAI API
+//!
+//! ⚠️ **DEPRECATED**: NEAR AI support will be removed in a future version.
+//!   Use `ollama`, `openai`, `anthropic`, or `openai_compatible` instead.
 
 pub mod circuit_breaker;
 pub mod costs;
@@ -21,7 +23,9 @@ pub mod session;
 
 pub use circuit_breaker::{CircuitBreakerConfig, CircuitBreakerProvider};
 pub use failover::{CooldownConfig, FailoverProvider};
+#[deprecated(note = "Use Ollama, OpenAi, Anthropic, or OpenAiCompatible instead")]
 pub use nearai::{ModelInfo, NearAiProvider};
+#[deprecated(note = "Use Ollama, OpenAi, Anthropic, or OpenAiCompatible instead")]
 pub use nearai_chat::NearAiChatProvider;
 pub use provider::{
     ChatMessage, CompletionRequest, CompletionResponse, FinishReason, LlmProvider, ModelMetadata,
@@ -46,8 +50,8 @@ use crate::error::LlmError;
 
 /// Create an LLM provider based on configuration.
 ///
-/// - `NearAi` backend: Uses session manager for authentication (Responses API)
-///   or API key (Chat Completions API)
+/// - **NearAi** backend (DEPRECATED): Uses session manager for authentication (Responses API)
+///   or API key (Chat Completions API). Will be removed in future version.
 /// - Other backends: Use rig-core adapter with provider-specific clients
 pub fn create_llm_provider(
     config: &LlmConfig,
