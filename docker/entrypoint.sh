@@ -41,7 +41,7 @@ fi
 
 # Create data directory if it doesn't exist
 mkdir -p /data /config
-chmod 755 /data /config
+chmod 755 /data /config || true
 
 echo "Starting TitanClaw application..."
 exec "$@"

@@ -25,6 +25,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src/ src/
 COPY migrations/ migrations/
 COPY wit/ wit/
+COPY benchmarks/ benchmarks/
 
 RUN cargo build --release --bin titanclaw
 
@@ -43,9 +44,8 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh
 
-# Create directories for data persistence
-RUN mkdir -p /data /config && \
-    chmod 755 /data /config
+# Create directories for data persistence (|| true to handle permission issues)
+RUN mkdir -p /data /config && chmod -R 755 /data /config || true
 
 # Non-root user
 RUN useradd -m -u 1000 -s /bin/bash titanclaw
@@ -59,7 +59,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
 
 # Environment variables
-ENV RUST_LOG=ironclaw=info
+ENV RUST_LOG=titanclaw=info
 ENV DATA_DIR=/data
 ENV CONFIG_DIR=/config
 

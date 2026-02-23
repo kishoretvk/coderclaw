@@ -19,3 +19,5 @@ bench-results/
 # WASM build artifacts (loaded from disk, not bundled)
 *.wasm
 
+titanclaw_logs.txt
+titanclaw_docker_logs.txt
