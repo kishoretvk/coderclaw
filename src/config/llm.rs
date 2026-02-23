@@ -304,7 +304,7 @@ impl LlmConfig {
             let base_url = optional_env("OLLAMA_BASE_URL")?
                 .or_else(|| settings.ollama_base_url.clone())
                 .unwrap_or_else(|| "http://localhost:11434".to_string());
-            let model = optional_env("OLLAMA_MODEL")?.unwrap_or_else(|| "llama3".to_string());
+            let model = optional_env("OLLAMA_MODEL")?.unwrap_or_else(|| "richardyoung/schematron-3b:Q4_K_M".to_string());
             Some(OllamaConfig { base_url, model })
         } else {
             None

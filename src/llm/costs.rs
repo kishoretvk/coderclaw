@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_local_model_free() {
-        let (input, output) = model_cost("llama3").unwrap();
+        let (input, output) = model_cost("richardyoung/schematron-3b:Q4_K_M").unwrap();
         assert_eq!(input, Decimal::ZERO);
         assert_eq!(output, Decimal::ZERO);
     }

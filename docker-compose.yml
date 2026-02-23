@@ -17,6 +17,7 @@ services:
     container_name: titanclaw
     ports:
       - "3000:3000"
+    command: ["titanclaw", "run", "--no-onboard", "-m", "test"]
     environment:
       - DATABASE_URL=postgres://titanclaw:titanclaw@postgres:5432/titanclaw
       - RUST_LOG=titanclaw=info,tower_http=debug
