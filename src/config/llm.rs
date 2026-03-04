@@ -10,12 +10,17 @@ use crate::settings::Settings;
 ///
 /// Defaults to `Ollama` to ensure local processing over external APIs.
 /// Users can override with `LLM_BACKEND` env var to use their own API keys.
+///
+/// **Note**: Near AI backend is deprecated. Please use Ollama, OpenAI,
+/// Anthropic, or OpenAI-compatible endpoints instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LlmBackend {
     /// Local Ollama instance (default)
     #[default]
     Ollama,
     /// NEAR AI proxy -- session or API key auth
+    /// DEPRECATED: Use Ollama, OpenAI, Anthropic, or OpenAI-compatible instead
+    #[deprecated(note = "Near AI is deprecated. Use Ollama, OpenAI, Anthropic, or OpenAI-compatible instead")]
     NearAi,
     /// Direct OpenAI API
     OpenAi,
@@ -33,14 +38,17 @@ impl std::str::FromStr for LlmBackend {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "nearai" | "near_ai" | "near" => Ok(Self::NearAi),
+            "nearai" | "near_ai" | "near" => {
+                #[allow(deprecated)]
+                Ok(Self::NearAi)
+            }
             "openai" | "open_ai" => Ok(Self::OpenAi),
             "anthropic" | "claude" => Ok(Self::Anthropic),
             "ollama" => Ok(Self::Ollama),
             "openai_compatible" | "openai-compatible" | "compatible" => Ok(Self::OpenAiCompatible),
             "tinfoil" => Ok(Self::Tinfoil),
             _ => Err(format!(
-                "invalid LLM backend '{}', expected one of: nearai, openai, anthropic, ollama, openai_compatible, tinfoil",
+                "invalid LLM backend '{}', expected one of: openai, anthropic, ollama, openai_compatible, tinfoil",
                 s
             )),
         }
@@ -50,6 +58,7 @@ impl std::str::FromStr for LlmBackend {
 impl std::fmt::Display for LlmBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            #[allow(deprecated)]
             Self::NearAi => write!(f, "nearai"),
             Self::OpenAi => write!(f, "openai"),
             Self::Anthropic => write!(f, "anthropic"),
@@ -110,6 +119,8 @@ pub struct LlmConfig {
     /// Which backend to use (default: Ollama)
     pub backend: LlmBackend,
     /// NEAR AI config (deprecated, kept for backwards compatibility)
+    /// **Note**: Near AI is deprecated. Please migrate to Ollama, OpenAI, or Anthropic.
+    #[deprecated(note = "Near AI is deprecated. Use Ollama, OpenAI, Anthropic, or OpenAI-compatible instead")]
     pub nearai: NearAiConfig,
     /// Direct OpenAI config (populated when backend=openai)
     pub openai: Option<OpenAiDirectConfig>,
@@ -202,7 +213,6 @@ pub struct NearAiConfig {
 impl LlmConfig {
     pub(crate) fn resolve(settings: &Settings) -> Result<Self, ConfigError> {
         // Determine backend: env var > settings > default (Ollama)
-        // Note: Near AI backend is deprecated
         let backend: LlmBackend = if let Some(b) = optional_env("LLM_BACKEND")? {
             b.parse().map_err(|e| ConfigError::InvalidValue {
                 key: "LLM_BACKEND".to_string(),
@@ -210,7 +220,17 @@ impl LlmConfig {
             })?
         } else if let Some(ref b) = settings.llm_backend {
             match b.parse() {
-                Ok(backend) => backend,
+                Ok(backend) => {
+                    // Warn if using deprecated Near AI backend
+                    #[allow(deprecated)]
+                    if backend == LlmBackend::NearAi {
+                        tracing::warn!(
+                            "NEAR AI backend is deprecated. Please migrate to Ollama, OpenAI, Anthropic, or OpenAI-compatible. \
+                             See https://docs.titanclaw.ai/backend-migration for migration guide."
+                        );
+                    }
+                    backend
+                }
                 Err(e) => {
                     tracing::warn!(
                         "Invalid llm_backend '{}' in settings: {}. Using default Ollama.",

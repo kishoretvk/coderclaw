@@ -3,7 +3,7 @@
 //! The wizard guides users through:
 //! 1. Database connection
 //! 2. Security (secrets master key)
-//! 3. Inference provider (NEAR AI, Anthropic, OpenAI, Ollama, OpenAI-compatible)
+//! 3. Inference provider (Anthropic, OpenAI, Ollama, OpenAI-compatible)
 //! 4. Model selection
 //! 5. Embeddings
 //! 6. Channel configuration
@@ -610,7 +610,7 @@ impl SetupWizard {
     /// Step 3: Inference provider selection.
     ///
     /// Lets the user pick from all supported LLM backends, then runs the
-    /// provider-specific auth sub-flow (API key entry, NEAR AI login, etc.).
+    /// provider-specific auth sub-flow (API key entry, Ollama setup, etc.).
     async fn step_inference_provider(&mut self) -> Result<(), SetupError> {
         // Show current provider if already configured
         if let Some(ref current) = self.settings.llm_backend {
@@ -622,7 +622,6 @@ impl SetupWizard {
                     .map(is_openrouter_base_url)
                     .unwrap_or(false);
             let display = match current.as_str() {
-                "nearai" => "NEAR AI",
                 "anthropic" => "Anthropic (Claude)",
                 "openai" => "OpenAI",
                 "ollama" => "Ollama (local)",
@@ -635,13 +634,12 @@ impl SetupWizard {
 
             let is_known = matches!(
                 current.as_str(),
-                "nearai" | "anthropic" | "openai" | "ollama" | "openai_compatible"
+                "anthropic" | "openai" | "ollama" | "openai_compatible"
             );
 
             if is_known && confirm("Keep current provider?", true).map_err(SetupError::Io)? {
                 // Still run the auth sub-flow in case they need to update keys
                 match current.as_str() {
-                    "nearai" => return self.setup_nearai().await,
                     "anthropic" => return self.setup_anthropic().await,
                     "openai" => return self.setup_openai().await,
                     "ollama" => return self.setup_ollama(),
@@ -668,10 +666,9 @@ impl SetupWizard {
         println!();
 
         let options = &[
-            "NEAR AI          - multi-model access via NEAR account",
             "Anthropic        - Claude models (direct API key)",
             "OpenAI           - GPT models (direct API key)",
-            "Ollama           - local models, no API key needed",
+            "Ollama           - local models, no API key needed (RECOMMENDED)",
             "OpenRouter       - OpenRouter hosted models (API key + model only)",
             "OpenAI-compatible - custom endpoint (vLLM, LiteLLM, Together, etc.)",
         ];
@@ -679,12 +676,11 @@ impl SetupWizard {
         let choice = select_one("Provider:", options).map_err(SetupError::Io)?;
 
         match choice {
-            0 => self.setup_nearai().await?,
-            1 => self.setup_anthropic().await?,
-            2 => self.setup_openai().await?,
-            3 => self.setup_ollama()?,
-            4 => self.setup_openrouter().await?,
-            5 => self.setup_openai_compatible().await?,
+            0 => self.setup_anthropic().await?,
+            1 => self.setup_openai().await?,
+            2 => self.setup_ollama()?,
+            3 => self.setup_openrouter().await?,
+            4 => self.setup_openai_compatible().await?,
             _ => return Err(SetupError::Config("Invalid provider selection".to_string())),
         }
 
@@ -1000,7 +996,7 @@ impl SetupWizard {
             }
         }
 
-        let backend = self.settings.llm_backend.as_deref().unwrap_or("nearai");
+        let backend = self.settings.llm_backend.as_deref().unwrap_or("ollama");
 
         match backend {
             "anthropic" => {
@@ -1052,27 +1048,11 @@ impl SetupWizard {
                 print_success(&format!("Selected {}", model_id));
             }
             _ => {
-                // NEAR AI: use existing provider list_models()
-                let fetched = self.fetch_nearai_models().await;
-                let default_models: Vec<(String, String)> = vec![
-                    (
-                        "fireworks::accounts/fireworks/models/llama4-maverick-instruct-basic"
-                            .into(),
-                        "Llama 4 Maverick (default, fast)".into(),
-                    ),
-                    (
-                        "anthropic::claude-sonnet-4-20250514".into(),
-                        "Claude Sonnet 4 (best quality)".into(),
-                    ),
-                    ("openai::gpt-4o".into(), "GPT-4o".into()),
-                ];
-
-                let models = if fetched.is_empty() {
-                    default_models
-                } else {
-                    fetched.iter().map(|m| (m.clone(), m.clone())).collect()
-                };
-                self.select_from_model_list(&models)?;
+                // Unknown provider - return error
+                return Err(SetupError::Config(format!(
+                    "Unknown backend '{}' for model selection",
+                    backend
+                )));
             }
         }
 
@@ -1181,10 +1161,9 @@ impl SetupWizard {
             return Ok(());
         }
 
-        let backend = self.settings.llm_backend.as_deref().unwrap_or("nearai");
+        let backend = self.settings.llm_backend.as_deref().unwrap_or("ollama");
         let has_openai_key = std::env::var("OPENAI_API_KEY").is_ok()
             || (backend == "openai" && self.llm_api_key.is_some());
-        let has_nearai = backend == "nearai" || self.session_manager.is_some();
 
         // If the LLM backend is OpenAI and we already have a key, default to OpenAI embeddings
         if backend == "openai" && has_openai_key {
@@ -1195,47 +1174,19 @@ impl SetupWizard {
             return Ok(());
         }
 
-        // If no NEAR AI session and no OpenAI key, only OpenAI is viable
-        if !has_nearai && !has_openai_key {
-            print_info("No NEAR AI session or OpenAI key found for embeddings.");
+        // For Ollama or other backends, prompt for OpenAI key or disable
+        if !has_openai_key {
+            print_info("No OpenAI key found for embeddings.");
             print_info("Set OPENAI_API_KEY in your environment to enable embeddings.");
             self.settings.embeddings.enabled = false;
             return Ok(());
         }
 
-        let mut options = Vec::new();
-        if has_nearai {
-            options.push("NEAR AI (uses same auth, no extra cost)");
-        }
-        options.push("OpenAI (requires API key)");
-
-        let choice = select_one("Select embeddings provider:", &options).map_err(SetupError::Io)?;
-
-        // Map choice back to provider name
-        let provider = if has_nearai && choice == 0 {
-            "nearai"
-        } else {
-            "openai"
-        };
-
-        match provider {
-            "nearai" => {
-                self.settings.embeddings.enabled = true;
-                self.settings.embeddings.provider = "nearai".to_string();
-                self.settings.embeddings.model = "text-embedding-3-small".to_string();
-                print_success("Embeddings enabled via NEAR AI");
-            }
-            _ => {
-                if !has_openai_key {
-                    print_info("OPENAI_API_KEY not set in environment.");
-                    print_info("Add it to your .env file or environment to enable embeddings.");
-                }
-                self.settings.embeddings.enabled = true;
-                self.settings.embeddings.provider = "openai".to_string();
-                self.settings.embeddings.model = "text-embedding-3-small".to_string();
-                print_success("Embeddings configured for OpenAI");
-            }
-        }
+        // Default to OpenAI embeddings when key is available
+        self.settings.embeddings.enabled = true;
+        self.settings.embeddings.provider = "openai".to_string();
+        self.settings.embeddings.model = "text-embedding-3-small".to_string();
+        print_success("Embeddings enabled via OpenAI");
 
         Ok(())
     }
@@ -1857,7 +1808,6 @@ impl SetupWizard {
                     .map(is_openrouter_base_url)
                     .unwrap_or(false);
             let display = match provider.as_str() {
-                "nearai" => "NEAR AI",
                 "anthropic" => "Anthropic",
                 "openai" => "OpenAI",
                 "ollama" => "Ollama",

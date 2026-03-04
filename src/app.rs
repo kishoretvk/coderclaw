@@ -389,7 +389,7 @@ impl AppBuilder {
         ),
         anyhow::Error,
     > {
-        use crate::workspace::{NearAiEmbeddings, OpenAiEmbeddings};
+        use crate::workspace::OpenAiEmbeddings;
 
         let safety = Arc::new(SafetyLayer::new(&self.config.safety));
         tracing::info!("Safety layer initialized");
@@ -401,20 +401,8 @@ impl AppBuilder {
         // Create embeddings provider if configured
         let embeddings: Option<Arc<dyn EmbeddingProvider>> = if self.config.embeddings.enabled {
             match self.config.embeddings.provider.as_str() {
-                "nearai" => {
-                    tracing::info!(
-                        "Embeddings enabled via NEAR AI (model: {})",
-                        self.config.embeddings.model
-                    );
-                    Some(Arc::new(
-                        NearAiEmbeddings::new(
-                            &self.config.llm.nearai.base_url,
-                            self.session.clone(),
-                        )
-                        .with_model(&self.config.embeddings.model, 1536),
-                    ))
-                }
                 _ => {
+                    // Default to OpenAI (Near AI is deprecated)
                     if let Some(api_key) = self.config.embeddings.openai_api_key() {
                         tracing::info!(
                             "Embeddings enabled via OpenAI (model: {})",

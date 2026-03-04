@@ -101,23 +101,11 @@ async fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("{}", e))?;
 
             // Set up embeddings if available
-            let session = ironclaw::llm::create_session_manager(ironclaw::llm::SessionConfig {
-                auth_base_url: config.llm.nearai.auth_base_url.clone(),
-                session_path: config.llm.nearai.session_path.clone(),
-            })
-            .await;
-
             let embeddings: Option<Arc<dyn ironclaw::workspace::EmbeddingProvider>> =
                 if config.embeddings.enabled {
                     match config.embeddings.provider.as_str() {
-                        "nearai" => Some(Arc::new(
-                            ironclaw::workspace::NearAiEmbeddings::new(
-                                &config.llm.nearai.base_url,
-                                session,
-                            )
-                            .with_model(&config.embeddings.model, 1536),
-                        )),
                         _ => {
+                            // Default to OpenAI (Near AI is deprecated)
                             if let Some(api_key) = config.embeddings.openai_api_key() {
                                 let dim = match config.embeddings.model.as_str() {
                                     "text-embedding-3-large" => 3072,
@@ -747,18 +735,8 @@ async fn main() -> anyhow::Result<()> {
     // Create embeddings provider if configured
     let embeddings: Option<Arc<dyn EmbeddingProvider>> = if config.embeddings.enabled {
         match config.embeddings.provider.as_str() {
-            "nearai" => {
-                tracing::info!(
-                    "Embeddings enabled via NEAR AI (model: {})",
-                    config.embeddings.model
-                );
-                Some(Arc::new(
-                    NearAiEmbeddings::new(&config.llm.nearai.base_url, session.clone())
-                        .with_model(&config.embeddings.model, 1536),
-                ))
-            }
             _ => {
-                // Default to OpenAI for unknown providers
+                // Default to OpenAI (Near AI is deprecated)
                 if let Some(api_key) = config.embeddings.openai_api_key() {
                     tracing::info!(
                         "Embeddings enabled via OpenAI (model: {})",
