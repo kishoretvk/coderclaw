@@ -36,7 +36,7 @@ pub use self::database::{DatabaseBackend, DatabaseConfig, default_libsql_path};
 pub use self::embeddings::EmbeddingsConfig;
 pub use self::heartbeat::HeartbeatConfig;
 pub use self::llm::{
-    AnthropicDirectConfig, LlmBackend, LlmConfig, NearAiApiMode, NearAiConfig, OllamaConfig,
+    AnthropicDirectConfig, LlmBackend, LlmConfig, OllamaConfig,
     OpenAiCompatibleConfig, OpenAiDirectConfig, TinfoilConfig,
 };
 pub use self::routines::RoutineConfig;

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use secrecy::SecretString;
 
 use crate::config::helpers::{optional_env, parse_optional_env};
@@ -10,18 +8,11 @@ use crate::settings::Settings;
 ///
 /// Defaults to `Ollama` to ensure local processing over external APIs.
 /// Users can override with `LLM_BACKEND` env var to use their own API keys.
-///
-/// **Note**: Near AI backend is deprecated. Please use Ollama, OpenAI,
-/// Anthropic, or OpenAI-compatible endpoints instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LlmBackend {
     /// Local Ollama instance (default)
     #[default]
     Ollama,
-    /// NEAR AI proxy -- session or API key auth
-    /// DEPRECATED: Use Ollama, OpenAI, Anthropic, or OpenAI-compatible instead
-    #[deprecated(note = "Near AI is deprecated. Use Ollama, OpenAI, Anthropic, or OpenAI-compatible instead")]
-    NearAi,
     /// Direct OpenAI API
     OpenAi,
     /// Direct Anthropic API
@@ -38,10 +29,6 @@ impl std::str::FromStr for LlmBackend {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "nearai" | "near_ai" | "near" => {
-                #[allow(deprecated)]
-                Ok(Self::NearAi)
-            }
             "openai" | "open_ai" => Ok(Self::OpenAi),
             "anthropic" | "claude" => Ok(Self::Anthropic),
             "ollama" => Ok(Self::Ollama),
@@ -58,8 +45,6 @@ impl std::str::FromStr for LlmBackend {
 impl std::fmt::Display for LlmBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            #[allow(deprecated)]
-            Self::NearAi => write!(f, "nearai"),
             Self::OpenAi => write!(f, "openai"),
             Self::Anthropic => write!(f, "anthropic"),
             Self::Ollama => write!(f, "ollama"),
@@ -118,10 +103,6 @@ pub struct TinfoilConfig {
 pub struct LlmConfig {
     /// Which backend to use (default: Ollama)
     pub backend: LlmBackend,
-    /// NEAR AI config (deprecated, kept for backwards compatibility)
-    /// **Note**: Near AI is deprecated. Please migrate to Ollama, OpenAI, or Anthropic.
-    #[deprecated(note = "Near AI is deprecated. Use Ollama, OpenAI, Anthropic, or OpenAI-compatible instead")]
-    pub nearai: NearAiConfig,
     /// Direct OpenAI config (populated when backend=openai)
     pub openai: Option<OpenAiDirectConfig>,
     /// Direct Anthropic config (populated when backend=anthropic)
@@ -134,82 +115,6 @@ pub struct LlmConfig {
     pub tinfoil: Option<TinfoilConfig>,
 }
 
-/// API mode for NEAR AI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum NearAiApiMode {
-    /// Use the Responses API (chat-api proxy) - session-based auth
-    #[default]
-    Responses,
-    /// Use the Chat Completions API (cloud-api) - API key auth
-    ChatCompletions,
-}
-
-impl std::str::FromStr for NearAiApiMode {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "responses" | "response" => Ok(Self::Responses),
-            "chat_completions" | "chatcompletions" | "chat" | "completions" => {
-                Ok(Self::ChatCompletions)
-            }
-            _ => Err(format!(
-                "invalid API mode '{}', expected 'responses' or 'chat_completions'",
-                s
-            )),
-        }
-    }
-}
-
-/// NEAR AI chat-api configuration.
-#[derive(Debug, Clone)]
-pub struct NearAiConfig {
-    /// Model to use (e.g., "claude-3-5-sonnet-20241022", "gpt-4o")
-    pub model: String,
-    /// Cheap/fast model for lightweight tasks (heartbeat, routing, evaluation).
-    /// Falls back to the main model if not set.
-    pub cheap_model: Option<String>,
-    /// Base URL for the NEAR AI API (default: https://private.near.ai).
-    pub base_url: String,
-    /// Base URL for auth/refresh endpoints (default: https://private.near.ai)
-    pub auth_base_url: String,
-    /// Path to session file (default: ~/.ironclaw/session.json)
-    pub session_path: PathBuf,
-    /// API mode: "responses" (chat-api) or "chat_completions" (cloud-api)
-    pub api_mode: NearAiApiMode,
-    /// API key for cloud-api (required for chat_completions mode)
-    pub api_key: Option<SecretString>,
-    /// Optional fallback model for failover (default: None).
-    /// When set, a secondary provider is created with this model and wrapped
-    /// in a `FailoverProvider` so transient errors on the primary model
-    /// automatically fall through to the fallback.
-    pub fallback_model: Option<String>,
-    /// Maximum number of retries for transient errors (default: 3).
-    /// With the default of 3, the provider makes up to 4 total attempts
-    /// (1 initial + 3 retries) before giving up.
-    pub max_retries: u32,
-    /// Consecutive transient failures before the circuit breaker opens.
-    /// None = disabled (default). E.g. 5 means after 5 consecutive failures
-    /// all requests are rejected until recovery timeout elapses.
-    pub circuit_breaker_threshold: Option<u32>,
-    /// How long (seconds) the circuit stays open before allowing a probe (default: 30).
-    pub circuit_breaker_recovery_secs: u64,
-    /// Enable in-memory response caching for `complete()` calls.
-    /// Saves tokens on repeated prompts within a session. Default: false.
-    pub response_cache_enabled: bool,
-    /// TTL in seconds for cached responses (default: 3600 = 1 hour).
-    pub response_cache_ttl_secs: u64,
-    /// Max cached responses before LRU eviction (default: 1000).
-    pub response_cache_max_entries: usize,
-    /// Cooldown duration in seconds for the failover provider (default: 300).
-    /// When a provider accumulates enough consecutive failures it is skipped
-    /// for this many seconds.
-    pub failover_cooldown_secs: u64,
-    /// Number of consecutive retryable failures before a provider enters
-    /// cooldown (default: 3).
-    pub failover_cooldown_threshold: u32,
-}
-
 impl LlmConfig {
     pub(crate) fn resolve(settings: &Settings) -> Result<Self, ConfigError> {
         // Determine backend: env var > settings > default (Ollama)
@@ -220,17 +125,7 @@ impl LlmConfig {
             })?
         } else if let Some(ref b) = settings.llm_backend {
             match b.parse() {
-                Ok(backend) => {
-                    // Warn if using deprecated Near AI backend
-                    #[allow(deprecated)]
-                    if backend == LlmBackend::NearAi {
-                        tracing::warn!(
-                            "NEAR AI backend is deprecated. Please migrate to Ollama, OpenAI, Anthropic, or OpenAI-compatible. \
-                             See https://docs.titanclaw.ai/backend-migration for migration guide."
-                        );
-                    }
-                    backend
-                }
+                Ok(backend) => backend,
                 Err(e) => {
                     tracing::warn!(
                         "Invalid llm_backend '{}' in settings: {}. Using default Ollama.",
@@ -244,55 +139,7 @@ impl LlmConfig {
             LlmBackend::Ollama
         };
 
-        // Resolve NEAR AI config only when backend is NearAi (or when explicitly configured)
-        let nearai_api_key = optional_env("NEARAI_API_KEY")?.map(SecretString::from);
-
-        let api_mode = if let Some(mode_str) = optional_env("NEARAI_API_MODE")? {
-            mode_str.parse().map_err(|e| ConfigError::InvalidValue {
-                key: "NEARAI_API_MODE".to_string(),
-                message: e,
-            })?
-        } else if nearai_api_key.is_some() {
-            NearAiApiMode::ChatCompletions
-        } else {
-            NearAiApiMode::Responses
-        };
-
-        let nearai = NearAiConfig {
-            model: optional_env("NEARAI_MODEL")?
-                .or_else(|| settings.selected_model.clone())
-                .unwrap_or_else(|| {
-                    "fireworks::accounts/fireworks/models/llama4-maverick-instruct-basic"
-                        .to_string()
-                }),
-            cheap_model: optional_env("NEARAI_CHEAP_MODEL")?,
-            base_url: optional_env("NEARAI_BASE_URL")?
-                .unwrap_or_else(|| "https://private.near.ai".to_string()),
-            auth_base_url: optional_env("NEARAI_AUTH_URL")?
-                .unwrap_or_else(|| "https://private.near.ai".to_string()),
-            session_path: optional_env("NEARAI_SESSION_PATH")?
-                .map(PathBuf::from)
-                .unwrap_or_else(default_session_path),
-            api_mode,
-            api_key: nearai_api_key,
-            fallback_model: optional_env("NEARAI_FALLBACK_MODEL")?,
-            max_retries: parse_optional_env("NEARAI_MAX_RETRIES", 3)?,
-            circuit_breaker_threshold: optional_env("CIRCUIT_BREAKER_THRESHOLD")?
-                .map(|s| s.parse())
-                .transpose()
-                .map_err(|e| ConfigError::InvalidValue {
-                    key: "CIRCUIT_BREAKER_THRESHOLD".to_string(),
-                    message: format!("must be a positive integer: {e}"),
-                })?,
-            circuit_breaker_recovery_secs: parse_optional_env("CIRCUIT_BREAKER_RECOVERY_SECS", 30)?,
-            response_cache_enabled: parse_optional_env("RESPONSE_CACHE_ENABLED", false)?,
-            response_cache_ttl_secs: parse_optional_env("RESPONSE_CACHE_TTL_SECS", 3600)?,
-            response_cache_max_entries: parse_optional_env("RESPONSE_CACHE_MAX_ENTRIES", 1000)?,
-            failover_cooldown_secs: parse_optional_env("LLM_FAILOVER_COOLDOWN_SECS", 300)?,
-            failover_cooldown_threshold: parse_optional_env("LLM_FAILOVER_THRESHOLD", 3)?,
-        };
-
-        // Resolve provider-specific configs based on backend
+        // Resolve config for each backend
         let openai = if backend == LlmBackend::OpenAi {
             let api_key = optional_env("OPENAI_API_KEY")?
                 .map(SecretString::from)
@@ -300,7 +147,9 @@ impl LlmConfig {
                     key: "OPENAI_API_KEY".to_string(),
                     hint: "Set OPENAI_API_KEY when LLM_BACKEND=openai".to_string(),
                 })?;
-            let model = optional_env("OPENAI_MODEL")?.unwrap_or_else(|| "gpt-4o".to_string());
+            let model = optional_env("OPENAI_MODEL")?
+                .or_else(|| settings.selected_model.clone())
+                .unwrap_or_else(|| "gpt-4o".to_string());
             Some(OpenAiDirectConfig { api_key, model })
         } else {
             None
@@ -314,6 +163,7 @@ impl LlmConfig {
                     hint: "Set ANTHROPIC_API_KEY when LLM_BACKEND=anthropic".to_string(),
                 })?;
             let model = optional_env("ANTHROPIC_MODEL")?
+                .or_else(|| settings.selected_model.clone())
                 .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
             Some(AnthropicDirectConfig { api_key, model })
         } else {
@@ -322,31 +172,25 @@ impl LlmConfig {
 
         let ollama = if backend == LlmBackend::Ollama {
             let base_url = optional_env("OLLAMA_BASE_URL")?
-                .or_else(|| settings.ollama_base_url.clone())
                 .unwrap_or_else(|| "http://localhost:11434".to_string());
-            let model = optional_env("OLLAMA_MODEL")?.unwrap_or_else(|| "richardyoung/schematron-3b:Q4_K_M".to_string());
+            let model = optional_env("OLLAMA_MODEL")?
+                .or_else(|| settings.selected_model.clone())
+                .unwrap_or_else(|| "llama3".to_string());
             Some(OllamaConfig { base_url, model })
         } else {
             None
         };
 
         let openai_compatible = if backend == LlmBackend::OpenAiCompatible {
-            let base_url = optional_env("LLM_BASE_URL")?
-                .or_else(|| settings.openai_compatible_base_url.clone())
+            let base_url = optional_env("OPENAI_COMPATIBLE_BASE_URL")?
                 .ok_or_else(|| ConfigError::MissingRequired {
-                    key: "LLM_BASE_URL".to_string(),
-                    hint: "Set LLM_BASE_URL when LLM_BACKEND=openai_compatible".to_string(),
+                    key: "OPENAI_COMPATIBLE_BASE_URL".to_string(),
+                    hint: "Set OPENAI_COMPATIBLE_BASE_URL when LLM_BACKEND=openai_compatible".to_string(),
                 })?;
-            let api_key = optional_env("LLM_API_KEY")?.map(SecretString::from);
-            if is_openrouter_base_url(&base_url) && api_key.is_none() {
-                return Err(ConfigError::MissingRequired {
-                    key: "LLM_API_KEY".to_string(),
-                    hint: "Set LLM_API_KEY when using OpenRouter (LLM_BASE_URL=https://openrouter.ai/api/v1)".to_string(),
-                });
-            }
-            let model = optional_env("LLM_MODEL")?
+            let api_key = optional_env("OPENAI_COMPATIBLE_API_KEY")?.map(SecretString::from);
+            let model = optional_env("OPENAI_COMPATIBLE_MODEL")?
                 .or_else(|| settings.selected_model.clone())
-                .unwrap_or_else(|| "default".to_string());
+                .unwrap_or_else(|| "gpt-4o".to_string());
             Some(OpenAiCompatibleConfig {
                 base_url,
                 api_key,
@@ -371,7 +215,6 @@ impl LlmConfig {
 
         Ok(Self {
             backend,
-            nearai,
             openai,
             anthropic,
             ollama,
@@ -394,111 +237,4 @@ fn is_openrouter_base_url(url: &str) -> bool {
     normalize_openai_compatible_base_url(url)
         .to_lowercase()
         .contains("openrouter.ai/api/v1")
-}
-
-/// Get the default session file path (~/.ironclaw/session.json).
-fn default_session_path() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".ironclaw")
-        .join("session.json")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::settings::Settings;
-    use std::sync::Mutex;
-
-    /// Serializes env-mutating tests to prevent parallel races.
-    static ENV_MUTEX: Mutex<()> = Mutex::new(());
-
-    /// Clear all openai-compatible-related env vars.
-    fn clear_openai_compatible_env() {
-        // SAFETY: Only called under ENV_MUTEX in tests.
-        unsafe {
-            std::env::remove_var("LLM_BACKEND");
-            std::env::remove_var("LLM_BASE_URL");
-            std::env::remove_var("LLM_MODEL");
-            std::env::remove_var("LLM_API_KEY");
-        }
-    }
-
-    #[test]
-    fn openai_compatible_uses_selected_model_when_llm_model_unset() {
-        let _guard = ENV_MUTEX.lock().expect("env mutex poisoned");
-        clear_openai_compatible_env();
-        // SAFETY: Under ENV_MUTEX.
-        unsafe {
-            std::env::set_var("LLM_API_KEY", "test-key");
-        }
-
-        let settings = Settings {
-            llm_backend: Some("openai_compatible".to_string()),
-            openai_compatible_base_url: Some("https://openrouter.ai/api/v1".to_string()),
-            selected_model: Some("openai/gpt-5.1-codex".to_string()),
-            ..Default::default()
-        };
-
-        let cfg = LlmConfig::resolve(&settings).expect("resolve should succeed");
-        let compat = cfg
-            .openai_compatible
-            .expect("openai-compatible config should be present");
-
-        assert_eq!(compat.model, "openai/gpt-5.1-codex");
-        // SAFETY: Under ENV_MUTEX.
-        unsafe {
-            std::env::remove_var("LLM_API_KEY");
-        }
-    }
-
-    #[test]
-    fn openai_compatible_llm_model_env_overrides_selected_model() {
-        let _guard = ENV_MUTEX.lock().expect("env mutex poisoned");
-        clear_openai_compatible_env();
-        // SAFETY: Under ENV_MUTEX.
-        unsafe {
-            std::env::set_var("LLM_MODEL", "openai/gpt-5-codex");
-            std::env::set_var("LLM_API_KEY", "test-key");
-        }
-
-        let settings = Settings {
-            llm_backend: Some("openai_compatible".to_string()),
-            openai_compatible_base_url: Some("https://openrouter.ai/api/v1".to_string()),
-            selected_model: Some("openai/gpt-5.1-codex".to_string()),
-            ..Default::default()
-        };
-
-        let cfg = LlmConfig::resolve(&settings).expect("resolve should succeed");
-        let compat = cfg
-            .openai_compatible
-            .expect("openai-compatible config should be present");
-
-        assert_eq!(compat.model, "openai/gpt-5-codex");
-
-        // SAFETY: Under ENV_MUTEX.
-        unsafe {
-            std::env::remove_var("LLM_MODEL");
-            std::env::remove_var("LLM_API_KEY");
-        }
-    }
-
-    #[test]
-    fn openrouter_requires_api_key() {
-        let _guard = ENV_MUTEX.lock().expect("env mutex poisoned");
-        clear_openai_compatible_env();
-
-        let settings = Settings {
-            llm_backend: Some("openai_compatible".to_string()),
-            openai_compatible_base_url: Some("https://openrouter.ai/api/v1".to_string()),
-            selected_model: Some("stepfun/step-3.5-flash:free".to_string()),
-            ..Default::default()
-        };
-
-        let err = LlmConfig::resolve(&settings).expect_err("resolve should fail without key");
-        match err {
-            ConfigError::MissingRequired { key, .. } => assert_eq!(key, "LLM_API_KEY"),
-            other => panic!("expected MissingRequired(LLM_API_KEY), got: {other}"),
-        }
-    }
 }
