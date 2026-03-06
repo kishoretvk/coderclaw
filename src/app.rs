@@ -15,7 +15,7 @@ use crate::context::ContextManager;
 use crate::db::Database;
 use crate::extensions::ExtensionManager;
 use crate::hooks::HookRegistry;
-use crate::llm::{LlmProvider, SessionManager};
+use crate::llm::{create_llm_provider, LlmProvider, SessionManager};
 use crate::safety::SafetyLayer;
 use crate::secrets::SecretsStore;
 use crate::skills::SkillRegistry;
@@ -300,78 +300,11 @@ impl AppBuilder {
         let llm = create_llm_provider(&self.config.llm, self.session.clone())?;
         tracing::info!("LLM provider initialized: {}", llm.model_name());
 
-        // Wrap in failover if a fallback model is configured
-        let llm: Arc<dyn LlmProvider> = if let Some(fallback_model) =
-            self.config.llm.nearai.fallback_model.as_ref()
-        {
-            if fallback_model == &self.config.llm.nearai.model {
-                tracing::warn!(
-                    "fallback_model is the same as primary model, failover may not be effective"
-                );
-            }
-            let mut fallback_config = self.config.llm.nearai.clone();
-            fallback_config.model = fallback_model.clone();
-            let fallback = create_llm_provider_with_config(&fallback_config, self.session.clone())?;
-            tracing::info!(
-                primary = %llm.model_name(),
-                fallback = %fallback.model_name(),
-                "LLM failover enabled"
-            );
-            let cooldown_config = CooldownConfig {
-                cooldown_duration: std::time::Duration::from_secs(
-                    self.config.llm.nearai.failover_cooldown_secs,
-                ),
-                failure_threshold: self.config.llm.nearai.failover_cooldown_threshold,
-            };
-            Arc::new(FailoverProvider::with_cooldown(
-                vec![llm, fallback],
-                cooldown_config,
-            )?)
-        } else {
-            llm
-        };
-
-        // Wrap in circuit breaker if configured
-        let llm: Arc<dyn LlmProvider> =
-            if let Some(threshold) = self.config.llm.nearai.circuit_breaker_threshold {
-                let cb_config = CircuitBreakerConfig {
-                    failure_threshold: threshold,
-                    recovery_timeout: std::time::Duration::from_secs(
-                        self.config.llm.nearai.circuit_breaker_recovery_secs,
-                    ),
-                    ..CircuitBreakerConfig::default()
-                };
-                tracing::info!(
-                    threshold,
-                    recovery_secs = self.config.llm.nearai.circuit_breaker_recovery_secs,
-                    "LLM circuit breaker enabled"
-                );
-                Arc::new(CircuitBreakerProvider::new(llm, cb_config))
-            } else {
-                llm
-            };
-
-        // Wrap in response cache if configured
-        let llm: Arc<dyn LlmProvider> = if self.config.llm.nearai.response_cache_enabled {
-            let rc_config = ResponseCacheConfig {
-                ttl: std::time::Duration::from_secs(self.config.llm.nearai.response_cache_ttl_secs),
-                max_entries: self.config.llm.nearai.response_cache_max_entries,
-            };
-            tracing::info!(
-                ttl_secs = self.config.llm.nearai.response_cache_ttl_secs,
-                max_entries = self.config.llm.nearai.response_cache_max_entries,
-                "LLM response cache enabled"
-            );
-            Arc::new(CachedProvider::new(llm, rc_config))
-        } else {
-            llm
-        };
-
-        // Cheap LLM for lightweight tasks
-        let cheap_llm = create_cheap_llm_provider(&self.config.llm, self.session.clone())?;
-        if let Some(ref cheap) = cheap_llm {
-            tracing::info!("Cheap LLM provider initialized: {}", cheap.model_name());
-        }
+        // Note: Near AI-specific failover, circuit breaker, and response cache
+        // features have been removed. These can be re-implemented per-backend if needed.
+        
+        // Cheap LLM provider is no longer available (was Near AI specific)
+        let cheap_llm: Option<Arc<dyn LlmProvider>> = None;
 
         Ok((llm, cheap_llm))
     }
@@ -401,8 +334,9 @@ impl AppBuilder {
         // Create embeddings provider if configured
         let embeddings: Option<Arc<dyn EmbeddingProvider>> = if self.config.embeddings.enabled {
             match self.config.embeddings.provider.as_str() {
+                // All providers now default to OpenAI - Near AI has been removed
                 _ => {
-                    // Default to OpenAI (Near AI is deprecated)
+                    // Default to OpenAI
                     if let Some(api_key) = self.config.embeddings.openai_api_key() {
                         tracing::info!(
                             "Embeddings enabled via OpenAI (model: {})",

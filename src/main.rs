@@ -27,7 +27,7 @@ use ironclaw::{
     llm::{
         CachedProvider, CircuitBreakerConfig, CircuitBreakerProvider, CooldownConfig,
         FailoverProvider, LlmProvider, ResponseCacheConfig, SessionConfig,
-        create_cheap_llm_provider, create_llm_provider, create_llm_provider_with_config,
+        create_llm_provider,
         create_session_manager,
     },
     orchestrator::{
@@ -42,7 +42,7 @@ use ironclaw::{
         mcp::{McpClient, McpSessionManager, config::load_mcp_servers_from_db, is_authenticated},
         wasm::{WasmToolLoader, WasmToolRuntime, load_dev_tools},
     },
-    workspace::{EmbeddingProvider, NearAiEmbeddings, OpenAiEmbeddings, Workspace},
+    workspace::{EmbeddingProvider, OpenAiEmbeddings, Workspace},
 };
 
 #[cfg(feature = "libsql")]
@@ -357,10 +357,10 @@ async fn main() -> anyhow::Result<()> {
         Err(e) => return Err(e.into()),
     };
 
-    // Initialize session manager and authenticate before channel setup
+    // Initialize session manager (required for session-based auth with some providers)
     let session_config = SessionConfig {
-        auth_base_url: config.llm.nearai.auth_base_url.clone(),
-        session_path: config.llm.nearai.session_path.clone(),
+        auth_base_url: "https://private.near.ai".to_string(),
+        session_path: std::path::PathBuf::from(".ironclaw/session.json"),
     };
     let session = create_session_manager(session_config).await;
 
@@ -564,14 +564,9 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    // Session-based auth is only needed for NEAR AI backend without an API key.
-    // Do this after DB-backed config reload so provider selection from onboarding
-    // is respected (e.g. OpenAI/OpenAI-compatible should not trigger NEAR auth).
-    if config.llm.backend == ironclaw::config::LlmBackend::NearAi
-        && config.llm.nearai.api_key.is_none()
-    {
-        session.ensure_authenticated().await?;
-    }
+    // Session-based auth is not needed - Near AI has been removed
+    // Keeping session manager for future providers that may need it
+    let _ = session;
 
     // Start managed tunnel if configured and no static URL is already set.
     //
@@ -629,81 +624,12 @@ async fn main() -> anyhow::Result<()> {
             None
         };
 
-    // Initialize LLM provider (clone session so we can reuse it for embeddings)
+    // Initialize LLM provider
     let llm = create_llm_provider(&config.llm, session.clone())?;
     tracing::info!("LLM provider initialized: {}", llm.model_name());
 
-    // Wrap in failover if a fallback model is configured
-    let llm: Arc<dyn LlmProvider> =
-        if let Some(fallback_model) = config.llm.nearai.fallback_model.as_ref() {
-            if fallback_model == &config.llm.nearai.model {
-                tracing::warn!(
-                    "fallback_model is the same as primary model, failover may not be effective"
-                );
-            }
-            let mut fallback_config = config.llm.nearai.clone();
-            fallback_config.model = fallback_model.clone();
-            let fallback = create_llm_provider_with_config(&fallback_config, session.clone())?;
-            tracing::info!(
-                primary = %llm.model_name(),
-                fallback = %fallback.model_name(),
-                "LLM failover enabled"
-            );
-            let cooldown_config = CooldownConfig {
-                cooldown_duration: std::time::Duration::from_secs(
-                    config.llm.nearai.failover_cooldown_secs,
-                ),
-                failure_threshold: config.llm.nearai.failover_cooldown_threshold,
-            };
-            Arc::new(FailoverProvider::with_cooldown(
-                vec![llm, fallback],
-                cooldown_config,
-            )?)
-        } else {
-            llm
-        };
-
-    // Wrap in circuit breaker if configured
-    let llm: Arc<dyn LlmProvider> =
-        if let Some(threshold) = config.llm.nearai.circuit_breaker_threshold {
-            let cb_config = CircuitBreakerConfig {
-                failure_threshold: threshold,
-                recovery_timeout: std::time::Duration::from_secs(
-                    config.llm.nearai.circuit_breaker_recovery_secs,
-                ),
-                ..CircuitBreakerConfig::default()
-            };
-            tracing::info!(
-                threshold,
-                recovery_secs = config.llm.nearai.circuit_breaker_recovery_secs,
-                "LLM circuit breaker enabled"
-            );
-            Arc::new(CircuitBreakerProvider::new(llm, cb_config))
-        } else {
-            llm
-        };
-
-    // Wrap in response cache if configured
-    let llm: Arc<dyn LlmProvider> = if config.llm.nearai.response_cache_enabled {
-        let rc_config = ResponseCacheConfig {
-            ttl: std::time::Duration::from_secs(config.llm.nearai.response_cache_ttl_secs),
-            max_entries: config.llm.nearai.response_cache_max_entries,
-        };
-        tracing::info!(
-            ttl_secs = config.llm.nearai.response_cache_ttl_secs,
-            max_entries = config.llm.nearai.response_cache_max_entries,
-            "LLM response cache enabled"
-        );
-        Arc::new(CachedProvider::new(llm, rc_config))
-    } else {
-        llm
-    };
-
-    // Initialize cheap LLM provider for lightweight tasks (heartbeat, evaluation)
-    let cheap_llm = create_cheap_llm_provider(&config.llm, session.clone())?;
-    if let Some(ref cheap) = cheap_llm {
-        tracing::info!("Cheap LLM provider initialized: {}", cheap.model_name());
-    }
+    // Note: Failover, circuit breaker, and response cache features 
+    // previously configured via Near AI config are now handled per-backend
 
     // Initialize safety layer
     let safety = Arc::new(SafetyLayer::new(&config.safety));
@@ -1740,16 +1666,16 @@ fn check_onboard_needed() -> Option<&'static str> {
         return Some("Database not configured");
     }
 
-    // First run (onboarding never completed and no session).
-    // Reads NEARAI_API_KEY env var directly because this function runs
-    // before Config is loaded -- Config::from_env() may fail without a
-    // database URL, which is what triggers onboarding in the first place.
-    if std::env::var("NEARAI_API_KEY").is_err() {
-        let settings = ironclaw::settings::Settings::load();
-        let session_path = ironclaw::llm::session::default_session_path();
-        if !settings.onboard_completed && !session_path.exists() {
-            return Some("First run");
-        }
+    // Check if first run (onboarding never completed)
+    // First run is determined by checking if DATABASE_URL/LIBSQL_PATH is set
+    // and if onboard_completed flag is not set
+    if !has_db {
+        return Some("Database not configured");
+    }
+
+    let settings = ironclaw::settings::Settings::load();
+    if !settings.onboard_completed {
+        return Some("First run");
     }
 
     None

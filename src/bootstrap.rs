@@ -213,16 +213,17 @@ pub async fn migrate_disk_to_db(
         }
     }
 
-    // 4. Migrate session.json if it exists (DEPRECATED: Near AI is deprecated)
+    // 4. Migrate session.json if it exists (for backward compatibility with old installations)
+    // This handles migration from pre-2.0 versions that may have stored session data
     let session_path = ironclaw_dir.join("session.json");
     if session_path.exists() {
         match std::fs::read_to_string(&session_path) {
             Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
                 Ok(value) => {
-                    // DEPRECATED: This stores Near AI session tokens
-                    // Near AI is deprecated, this code is for backward compatibility only
+                    // Store the legacy session data under a generic key for potential migration
+                    // This helps users upgrading from older versions
                     store
-                        .set_setting(user_id, "nearai.session_token", &value)
+                        .set_setting(user_id, "legacy.session_token", &value)
                         .await
                         .map_err(|e| {
                             MigrationError::Database(format!(
@@ -230,7 +231,7 @@ pub async fn migrate_disk_to_db(
                                 e
                             ))
                         })?;
-                    tracing::info!("Migrated session.json to database");
+                    tracing::info!("Migrated legacy session.json to database");
 
                     rename_to_migrated(&session_path);
                 }

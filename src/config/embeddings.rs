@@ -9,7 +9,7 @@ use crate::settings::Settings;
 pub struct EmbeddingsConfig {
     /// Whether embeddings are enabled.
     pub enabled: bool,
-    /// Provider to use: "openai" or "nearai"
+    /// Provider to use: "openai" or "ollama"
     pub provider: String,
     /// OpenAI API key (for OpenAI provider).
     pub openai_api_key: Option<SecretString>,

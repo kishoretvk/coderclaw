@@ -16,19 +16,6 @@ pub async fn run_doctor_command() -> anyhow::Result<()> {
 
     // ── Configuration checks ──────────────────────────────────
 
-    // ⚠️ DEPRECATED: Near AI check - will be removed in future versions
-    // Only run if explicitly using Near AI backend
-    if should_check_nearai() {
-        check(
-            "NEAR AI session (DEPRECATED)",
-            check_nearai_session().await,
-            &mut passed,
-            &mut failed,
-        );
-    } else {
-        println!("  [skip] NEAR AI session: deprecated, using {}", get_llm_backend());
-    }
-
     check(
         "Database backend",
         check_database().await,
@@ -109,48 +96,6 @@ enum CheckResult {
     Skip(String),
 }
 
-async fn check_nearai_session() -> CheckResult {
-    // DEPRECATED: This check is for Near AI which is being deprecated
-    // Check if session file exists
-    let session_path = crate::llm::session::default_session_path();
-    if !session_path.exists() {
-        // Check for API key mode
-        if std::env::var("NEARAI_API_KEY").is_ok() {
-            return CheckResult::Pass("API key configured (DEPRECATED)".into());
-        }
-        return CheckResult::Skip(format!(
-            "session file not found at {}. NEAR AI is deprecated, use LLM_BACKEND=ollama instead",
-            session_path.display()
-        ));
-    }
-
-    // Verify the session file is readable and non-empty
-    match std::fs::read_to_string(&session_path) {
-        Ok(content) if content.trim().is_empty() => {
-            CheckResult::Fail("session file is empty".into())
-        }
-        Ok(_) => CheckResult::Pass(format!(
-            "session found ({}) - DEPRECATED, consider switching to Ollama",
-            session_path.display()
-        )),
-        Err(e) => CheckResult::Fail(format!("cannot read session file: {e}")),
-    }
-}
-
-/// Check if Near AI backend is being used
-fn should_check_nearai() -> bool {
-    // Check if LLM_BACKEND is set to nearai
-    if let Ok(backend) = std::env::var("LLM_BACKEND") {
-        return backend.to_lowercase().contains("nearai");
-    }
-    // Also check if NEARAI_SESSION_TOKEN or NEARAI_API_KEY is set
-    std::env::var("NEARAI_SESSION_TOKEN").is_ok() || std::env::var("NEARAI_API_KEY").is_ok()
-}
-
-/// Get current LLM backend for display
-fn get_llm_backend() -> String {
-    std::env::var("LLM_BACKEND").unwrap_or_else(|_| "ollama (default)".to_string())
-}
 
 async fn check_database() -> CheckResult {
     let backend = std::env::var("DATABASE_BACKEND")
@@ -294,13 +239,6 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn check_nearai_session_does_not_panic() {
-        let result = check_nearai_session().await;
-        match result {
-            CheckResult::Pass(_) | CheckResult::Fail(_) | CheckResult::Skip(_) => {}
-        }
-    }
 
     fn format_result(r: &CheckResult) -> String {
         match r {

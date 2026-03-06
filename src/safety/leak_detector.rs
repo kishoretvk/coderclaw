@@ -447,9 +447,9 @@ fn default_patterns() -> Vec<LeakPattern> {
             severity: LeakSeverity::Critical,
             action: LeakAction::Block,
         },
-        // NEAR AI session tokens
+        // Generic session tokens
         LeakPattern {
-            name: "nearai_session".to_string(),
+            name: "session_token".to_string(),
             regex: Regex::new(r"sess_[a-zA-Z0-9]{32,}").unwrap(),
             severity: LeakSeverity::Critical,
             action: LeakAction::Block,

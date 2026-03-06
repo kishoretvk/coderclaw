@@ -161,16 +161,12 @@ pub fn default_allowlist() -> Vec<String> {
 }
 
 /// Default credential mappings for common APIs.
-///
-/// Note: NEAR AI credentials are deprecated but kept for backwards compatibility.
 pub fn default_credential_mappings() -> Vec<crate::secrets::CredentialMapping> {
     use crate::secrets::CredentialMapping;
 
     vec![
         CredentialMapping::bearer("OPENAI_API_KEY", "api.openai.com"),
         CredentialMapping::header("ANTHROPIC_API_KEY", "x-api-key", "api.anthropic.com"),
-        // DEPRECATED: NEAR AI support will be removed
-        CredentialMapping::bearer("NEARAI_API_KEY", "api.near.ai"),
     ]
 }
 

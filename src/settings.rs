@@ -41,7 +41,7 @@ pub struct Settings {
     pub secrets_master_key_source: KeySource,
 
     // === Step 3: Inference Provider ===
-    /// LLM backend: "nearai", "anthropic", "openai", "ollama", "openai_compatible".
+    /// LLM backend: "anthropic", "openai", "ollama", "openai_compatible".
     #[serde(default)]
     pub llm_backend: Option<String>,
 
@@ -133,7 +133,6 @@ pub struct EmbeddingsSettings {
     pub enabled: bool,
 
     /// Provider to use: "openai" or "ollama".
-    /// Note: "nearai" is deprecated and will be removed.
     #[serde(default = "default_embeddings_provider")]
     pub provider: String,
 
@@ -143,7 +142,6 @@ pub struct EmbeddingsSettings {
 }
 
 fn default_embeddings_provider() -> String {
-    // Note: "nearai" is deprecated, use "openai" instead
     "openai".to_string()
 }
 
@@ -690,8 +688,7 @@ impl Settings {
         // Start with defaults, then overlay each DB setting.
         //
         // The settings table stores both Settings struct fields and app-specific
-        // data (e.g. nearai.session_token). Skip keys that don't correspond to
-        // a known Settings path.
+        // data. Skip keys that don't correspond to a known Settings path.
         let mut settings = Self::default();
 
         for (key, value) in map {
@@ -707,7 +704,7 @@ impl Settings {
             match settings.set(key, &value_str) {
                 Ok(()) => {}
                 // The settings table stores both Settings fields and app-specific
-                // data (e.g. nearai.session_token). Silently skip unknown paths.
+                // data. Silently skip unknown paths.
                 Err(e) if e.starts_with("Path not found") => {}
                 Err(e) => {
                     tracing::warn!(
@@ -1131,7 +1128,7 @@ mod tests {
     fn test_embeddings_defaults() {
         let settings = Settings::default();
         assert!(!settings.embeddings.enabled);
-        assert_eq!(settings.embeddings.provider, "nearai");
+        assert_eq!(settings.embeddings.provider, "openai");
         assert_eq!(settings.embeddings.model, "text-embedding-3-small");
     }
 
