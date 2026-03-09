@@ -50,6 +50,7 @@ pub mod hygiene;
 mod repository;
 mod search;
 mod templates;
+pub mod vector_simd;
 
 pub use chunker::{ChunkConfig, chunk_document};
 pub use document::{MemoryChunk, MemoryDocument, WorkspaceEntry, paths};
@@ -57,6 +58,7 @@ pub use embeddings::{EmbeddingProvider, MockEmbeddings, OpenAiEmbeddings};
 #[cfg(feature = "postgres")]
 pub use repository::Repository;
 pub use search::{RankedResult, SearchConfig, SearchResult, reciprocal_rank_fusion};
+pub use vector_simd::{cosine_similarity, dot_product, l2_distance, l2_norm, normalize, top_k_nearest, top_k_similar};
 
 use std::sync::Arc;
 
